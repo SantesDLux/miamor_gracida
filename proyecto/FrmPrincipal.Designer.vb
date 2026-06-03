@@ -41,6 +41,7 @@ Partial Class FrmPrincipal
         Me.BtnAceptar = New System.Windows.Forms.Button()
         Me.BtnLimpíar = New System.Windows.Forms.Button()
         Me.CmbTemperatura = New System.Windows.Forms.ComboBox()
+        Me.CmbSenial = New System.Windows.Forms.ComboBox()
         CType(Me.Chart1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.MenuStrip1.SuspendLayout()
         Me.SuspendLayout()
@@ -150,16 +151,25 @@ Partial Class FrmPrincipal
         'CmbTemperatura
         '
         Me.CmbTemperatura.FormattingEnabled = True
-        Me.CmbTemperatura.Location = New System.Drawing.Point(215, 389)
+        Me.CmbTemperatura.Location = New System.Drawing.Point(310, 389)
         Me.CmbTemperatura.Name = "CmbTemperatura"
-        Me.CmbTemperatura.Size = New System.Drawing.Size(121, 21)
+        Me.CmbTemperatura.Size = New System.Drawing.Size(100, 21)
         Me.CmbTemperatura.TabIndex = 5
+        '
+        'CmbSenial
+        '
+        Me.CmbSenial.FormattingEnabled = True
+        Me.CmbSenial.Location = New System.Drawing.Point(120, 389)
+        Me.CmbSenial.Name = "CmbSenial"
+        Me.CmbSenial.Size = New System.Drawing.Size(184, 21)
+        Me.CmbSenial.TabIndex = 6
         '
         'FrmPrincipal
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(573, 450)
+        Me.Controls.Add(Me.CmbSenial)
         Me.Controls.Add(Me.CmbTemperatura)
         Me.Controls.Add(Me.BtnLimpíar)
         Me.Controls.Add(Me.BtnAceptar)
@@ -192,4 +202,5 @@ Partial Class FrmPrincipal
     Friend WithEvents ExportarToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents SALIRToolStripMenuItem1 As ToolStripMenuItem
     Friend WithEvents CmbTemperatura As ComboBox
+    Friend WithEvents CmbSenial As ComboBox
 End Class

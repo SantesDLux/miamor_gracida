@@ -8,7 +8,14 @@ Public Class FrmPrincipal
     Dim puertoConfigurado As Boolean = False
     Dim rnd As New Random()
 
-    Dim valoresCelsius As New List(Of Double)
+    Private Structure DatoExport
+        Dim TempC As Double
+        Dim TempF As Double
+        Dim Humedad As Double
+        Dim Velocidad As Double
+    End Structure
+
+    Dim valoresExport As New List(Of DatoExport)
 
     Private Sub FrmPrincipal_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Timer1.Interval = 500
@@ -28,6 +35,12 @@ Public Class FrmPrincipal
         CmbTemperatura.Items.Add("Celcius")
         CmbTemperatura.Items.Add("Farenheit")
         CmbTemperatura.SelectedIndex = 0
+
+        CmbSenial.Items.Add("Temperatura")
+        CmbSenial.Items.Add("Humedad")
+        CmbSenial.Items.Add("Velocidad del aire")
+        CmbSenial.SelectedIndex = 0
+        CmbTemperatura.Visible = True
 
     End Sub
 
@@ -106,15 +119,28 @@ Public Class FrmPrincipal
 
     Private Sub GraficarPunto(valorRecibido As Double)
 
-        Dim valorFinal As Double
+        Dim valorFinal As Double = valorRecibido
+        Dim dato As New DatoExport()
 
-        If CmbTemperatura.Text = "Farenheit" Then
-            valorFinal = (valorRecibido * 9 / 5) + 32
-        Else
-            valorFinal = valorRecibido
-        End If
+        Select Case CmbSenial.Text
+            Case "Humedad"
+                dato.Humedad = valorRecibido
+                valorFinal = valorRecibido
+            Case "Velocidad del aire"
+                dato.Velocidad = valorRecibido
+                valorFinal = valorRecibido
+            Case Else
+                If CmbTemperatura.Text = "Farenheit" Then
+                    valorFinal = (valorRecibido * 9 / 5) + 32
+                    dato.TempF = valorFinal
+                    dato.TempC = valorRecibido
+                Else
+                    dato.TempC = valorRecibido
+                    dato.TempF = (valorRecibido * 9 / 5) + 32
+                End If
+        End Select
 
-        valoresCelsius.Add(valorFinal)
+        valoresExport.Add(dato)
 
         Chart1.Series("Sensor").Points.AddXY(tiempo, valorFinal)
 
@@ -133,12 +159,12 @@ Public Class FrmPrincipal
         If resp = MsgBoxResult.No Then Return
 
         Chart1.Series("Sensor").Points.Clear()
-        valoresCelsius.Clear()
+        valoresExport.Clear()
         tiempo = 0
     End Sub
 
     Private Sub ExportarCSVToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ExportarToolStripMenuItem.Click
-        If Chart1.Series("Sensor").Points.Count = 0 Then
+        If valoresExport.Count = 0 Then
             MsgBox("No hay datos para exportar.", MsgBoxStyle.Exclamation)
             Return
         End If
@@ -150,9 +176,10 @@ Public Class FrmPrincipal
 
         If dlg.ShowDialog() = DialogResult.OK Then
             Using sw As New StreamWriter(dlg.FileName)
-                sw.WriteLine("Tiempo,Celsius")
-                For i As Integer = 0 To valoresCelsius.Count - 1
-                    sw.WriteLine(i.ToString() & "," & valoresCelsius(i).ToString())
+                sw.WriteLine("Tiempo,Temperatura (C),Temperatura (F),Humedad,Velocidad del aire (m/s)")
+                For i As Integer = 0 To valoresExport.Count - 1
+                    Dim d As DatoExport = valoresExport(i)
+                    sw.WriteLine(i.ToString() & "," & d.TempC.ToString() & "," & d.TempF.ToString() & "," & d.Humedad.ToString() & "," & d.Velocidad.ToString())
                 Next
             End Using
             MsgBox("CSV exportado correctamente en:" & vbNewLine & dlg.FileName)
@@ -167,7 +194,7 @@ Public Class FrmPrincipal
         If dlg.ShowDialog() = DialogResult.OK Then
             Try
                 Chart1.Series("Sensor").Points.Clear()
-                valoresCelsius.Clear()
+                valoresExport.Clear()
                 tiempo = 0
 
                 Dim lineas() As String = File.ReadAllLines(dlg.FileName)
@@ -179,9 +206,22 @@ Public Class FrmPrincipal
                     Dim partes() As String = lineas(i).Split(",")
                     If partes.Length >= 2 Then
                         Dim t As Double
-                        Dim v As Double
-                        If Double.TryParse(partes(0).Trim(), t) AndAlso Double.TryParse(partes(1).Trim(), v) Then
-                            valoresCelsius.Add(v)
+                        If Double.TryParse(partes(0).Trim(), t) Then
+                            Dim d As New DatoExport()
+                            If partes.Length >= 5 Then
+                                Double.TryParse(partes(1).Trim(), d.TempC)
+                                Double.TryParse(partes(2).Trim(), d.TempF)
+                                Double.TryParse(partes(3).Trim(), d.Humedad)
+                                Double.TryParse(partes(4).Trim(), d.Velocidad)
+                            Else
+                                Double.TryParse(partes(1).Trim(), d.TempC)
+                            End If
+                            valoresExport.Add(d)
+
+                            Dim v As Double = d.TempC
+                            If d.Humedad <> 0 Then v = d.Humedad
+                            If d.Velocidad <> 0 Then v = d.Velocidad
+                            If d.TempF <> 0 AndAlso d.TempC = 0 Then v = d.TempF
                             Chart1.Series("Sensor").Points.AddXY(t, v)
                             tiempo = CInt(t) + 1
                         End If
@@ -216,22 +256,48 @@ Public Class FrmPrincipal
     Dim angulo As Double = 0
 
     Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
-        Dim baseTemp As Double = 27 + 5 * Math.Sin(angulo)
+        Dim valorSimulado As Double
 
-        Dim ruido As Double = rnd.NextDouble() * 1.5 - 0.75
+        Select Case CmbSenial.Text
+            Case "Humedad"
+                Dim baseHum As Double = 60 + 15 * Math.Sin(angulo)
+                Dim ruido As Double = rnd.NextDouble() * 3 - 1.5
+                valorSimulado = Math.Round(baseHum + ruido, 1)
+            Case "Velocidad del aire"
+                Dim baseVel As Double = 3 + 2 * Math.Sin(angulo)
+                Dim ruido As Double = rnd.NextDouble() * 0.6 - 0.3
+                valorSimulado = Math.Round(Math.Max(0, baseVel + ruido), 2)
+            Case Else
+                Dim baseTemp As Double = 27 + 5 * Math.Sin(angulo)
+                Dim ruido As Double = rnd.NextDouble() * 1.5 - 0.75
+                valorSimulado = Math.Round(baseTemp + ruido, 2)
+        End Select
 
-        Dim valorSimulado As Double = baseTemp + ruido
-
-        GraficarPunto(Math.Round(valorSimulado, 2))
-
+        GraficarPunto(valorSimulado)
         angulo += 0.2
     End Sub
 
+    Private Sub CmbSenial_SelectedIndexChanged(sender As Object, e As EventArgs) Handles CmbSenial.SelectedIndexChanged
+        CmbTemperatura.Visible = (CmbSenial.Text = "Temperatura")
+        ActualizarEjeY()
+    End Sub
+
     Private Sub CmbTemperatura_SelectedIndexChanged(sender As Object, e As EventArgs) Handles CmbTemperatura.SelectedIndexChanged
-        If CmbTemperatura.Text = "Celcius" Then
-            Chart1.ChartAreas(0).AxisY.Title = "Temperatura (°C)"
-        Else
-            Chart1.ChartAreas(0).AxisY.Title = "Temperatura (°F)"
-        End If
+        ActualizarEjeY()
+    End Sub
+
+    Private Sub ActualizarEjeY()
+        Select Case CmbSenial.Text
+            Case "Humedad"
+                Chart1.ChartAreas(0).AxisY.Title = "Humedad (%)"
+            Case "Velocidad del aire"
+                Chart1.ChartAreas(0).AxisY.Title = "Velocidad del aire (m/s)"
+            Case Else
+                If CmbTemperatura.Text = "Celcius" Then
+                    Chart1.ChartAreas(0).AxisY.Title = "Temperatura (°C)"
+                Else
+                    Chart1.ChartAreas(0).AxisY.Title = "Temperatura (°F)"
+                End If
+        End Select
     End Sub
 End Class
